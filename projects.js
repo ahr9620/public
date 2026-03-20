@@ -54,7 +54,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/planetary_computation/1.jpg",
+                src: "images/planetary_computation/1.jpg",
                 caption: "Exhibition View 1",
                 wide: true,
               },
@@ -64,12 +64,12 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/planetary_computation/2.jpg",
+                src: "images/planetary_computation/2.jpg",
                 caption: "Exhibition View 2",
               },
               {
                 type: "image",
-                src: "/images/planetary_computation/3.jpg",
+                src: "images/planetary_computation/3.jpg",
                 caption: "Exhibition View 3",
               },
             ],
@@ -106,7 +106,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/shipbreaking/1.png",
+                src: "images/shipbreaking/1.png",
                 caption: "3D scan",
                 wide: true,
               },
@@ -116,7 +116,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/shipbreaking/2.jpg",
+                src: "images/shipbreaking/2.jpg",
                 caption: "High Resolution Panoramic",
               },
               {
@@ -157,13 +157,13 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/dataveillance/1.jpg",
+                src: "images/dataveillance/1.jpg",
                 caption: "Installation View",
                 wide: true,
               },
               {
                 type: "image",
-                src: "/images/dataveillance/2.jpg",
+                src: "images/dataveillance/2.jpg",
                 caption: "Map of CCTV Cameras in SLC",
                 wide: true,
               },
@@ -189,12 +189,12 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/surveilling_the_surveillors/1.png",
+                src: "images/surveilling_the_surveillors/1.png",
                 caption: "Mark Zuckerberg - Meta - $265 Billion",
               },
               {
                 type: "image",
-                src: "/images/surveilling_the_surveillors/2.png",
+                src: "images/surveilling_the_surveillors/2.png",
                 caption: "Peter Thiel - Palantir - $23 Billion",
               },
               {
@@ -203,7 +203,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/surveilling_the_surveillors/4.jpg",
+                src: "images/surveilling_the_surveillors/4.jpg",
                 caption: "Installation View",
               },
             ],
@@ -232,7 +232,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/workshop_download_yourself/1.jpg",
+                src: "images/workshop_download_yourself/1.jpg",
                 caption: "——",
               },
               {
@@ -241,7 +241,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/workshop_download_yourself/2.jpg",
+                src: "images/workshop_download_yourself/2.jpg",
                 caption: "——",
               },
               {
@@ -275,27 +275,27 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/1.jpeg",
+                src: "images/an_atlas_of_border_technology/1.jpeg",
                 caption: "Book Cover and Field Guide",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/2.jpeg",
+                src: "images/an_atlas_of_border_technology/2.jpeg",
                 caption: "Page Spread",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/4.png",
+                src: "images/an_atlas_of_border_technology/4.png",
                 caption: "First 50 Pages",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/10.jpg",
+                src: "images/an_atlas_of_border_technology/10.jpg",
                 caption: "Aerostat System, Deming, NM",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/3.jpg",
+                src: "images/an_atlas_of_border_technology/3.jpg",
                 caption: "Field Identification Guide",
               },
               {
@@ -304,7 +304,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/5.png",
+                src: "images/an_atlas_of_border_technology/5.png",
                 caption: "Sensors Mapped with Ranges using turf.js",
                 wide: true,
               },
@@ -314,17 +314,17 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/6.jpg",
+                src: "images/an_atlas_of_border_technology/6.jpg",
                 caption: "Integrated Surveillance Tower (IST) El Paso, TX",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/9.png",
+                src: "images/an_atlas_of_border_technology/9.png",
                 caption: "Diagram of Anduril Lattice System",
               },
               {
                 type: "image",
-                src: "/images/an_atlas_of_border_technology/7.png",
+                src: "images/an_atlas_of_border_technology/7.png",
                 caption: "Mapping Progress So Far",
               },
             ],
@@ -378,7 +378,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/mapping_epstein/1.jpg",
+                src: "images/mapping_epstein/1.jpg",
                 caption: "Map Overview",
                 wide: true,
               },
@@ -388,7 +388,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/mapping_epstein/2.jpg",
+                src: "images/mapping_epstein/2.jpg",
                 caption: "Email Pop-up",
               },
               {
@@ -469,7 +469,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/workshop_how_to_geolocate_almost_anything/1.jpg",
+                src: "images/workshop_how_to_geolocate_almost_anything/1.jpg",
                 caption: "OverpassTurbo Demo",
                 wide: true,
               },
@@ -479,7 +479,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/workshop_how_to_geolocate_almost_anything/2.jpg",
+                src: "images/workshop_how_to_geolocate_almost_anything/2.jpg",
                 caption: "Using Maps as a Research Tool",
                 wide: true,
               },
@@ -541,7 +541,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/how_computers_see/2.jpg",
+                src: "images/how_computers_see/2.jpg",
                 caption: "Tonopah, Nevada",
                 wide: true,
               },
@@ -551,7 +551,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/how_computers_see/1.jpg",
+                src: "images/how_computers_see/1.jpg",
                 caption: "Pahrump, Nevada",
                 wide: true,
               },
@@ -585,47 +585,47 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/the_sphere/2.jpg",
+                src: "images/the_sphere/2.jpg",
                 caption: "Las Vegas Strip context",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/3.jpg",
+                src: "images/the_sphere/3.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/1.jpg",
+                src: "images/the_sphere/1.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/4.jpg",
+                src: "images/the_sphere/4.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/5.jpg",
+                src: "images/the_sphere/5.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/6.jpg",
+                src: "images/the_sphere/6.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/7.jpg",
+                src: "images/the_sphere/7.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/8.jpg",
+                src: "images/the_sphere/8.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/the_sphere/9.jpg",
+                src: "images/the_sphere/9.jpg",
                 caption: "——",
               },
             ],
@@ -690,13 +690,13 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/experiments_in_air_quality/1.jpg",
+                src: "images/experiments_in_air_quality/1.jpg",
                 caption: "A wearable device for crowdsourcing community air quality data.",
                 wide: true,
               },
               {
                 type: "image",
-                src: "/images/experiments_in_air_quality/2.jpg",
+                src: "images/experiments_in_air_quality/2.jpg",
                 caption: "A live",
               },
             ],
@@ -750,93 +750,93 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/american_pageantry/1.jpg",
+                src: "images/american_pageantry/1.jpg",
                 caption: "——",
                 wide: true,
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/3.jpg",
+                src: "images/american_pageantry/3.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/8.jpg",
+                src: "images/american_pageantry/8.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/9.jpg",
+                src: "images/american_pageantry/9.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/4.jpg",
+                src: "images/american_pageantry/4.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/5.jpg",
+                src: "images/american_pageantry/5.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/6.jpg",
+                src: "images/american_pageantry/6.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/10.jpg",
+                src: "images/american_pageantry/10.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/2.jpg",
+                src: "images/american_pageantry/2.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/11.jpg",
+                src: "images/american_pageantry/11.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/12.jpg",
+                src: "images/american_pageantry/12.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/13.jpg",
+                src: "images/american_pageantry/13.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/14.jpg",
+                src: "images/american_pageantry/14.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/15.jpg",
+                src: "images/american_pageantry/15.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/16.jpg",
+                src: "images/american_pageantry/16.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/17.jpg",
+                src: "images/american_pageantry/17.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/18.jpg",
+                src: "images/american_pageantry/18.jpg",
                 caption: "——",
               },
               {
                 type: "image",
-                src: "/images/american_pageantry/19.jpg",
+                src: "images/american_pageantry/19.jpg",
                 caption: "——",
               },
             ],
@@ -865,48 +865,48 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/3.jpg",
+                src: "images/fabricated_landscapes/3.jpg",
                 caption: "Dubai, U.A.E.",
                 wide: true,
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/4.jpg",
+                src: "images/fabricated_landscapes/4.jpg",
                 caption: "Seoul, Korea",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/5.jpg",
+                src: "images/fabricated_landscapes/5.jpg",
                 caption: "Shanghai, China",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/6.jpg",
+                src: "images/fabricated_landscapes/6.jpg",
                 caption: "Shanghai, China",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/7.jpg",
+                src: "images/fabricated_landscapes/7.jpg",
                 caption: "Dubai, U.A.E.",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/8.jpg",
+                src: "images/fabricated_landscapes/8.jpg",
                 caption: "Hong Kong, HK",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/9.jpg",
+                src: "images/fabricated_landscapes/9.jpg",
                 caption: "Hong Kong, HK",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/10.jpg",
+                src: "images/fabricated_landscapes/10.jpg",
                 caption: "Baku, Azerbaijan",
               },
               {
                 type: "image",
-                src: "/images/fabricated_landscapes/11.jpg",
+                src: "images/fabricated_landscapes/11.jpg",
                 caption: "——",
               },
             ],
@@ -935,7 +935,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/kakhovka_dam_quantifying_terror/1.png",
+                src: "images/kakhovka_dam_quantifying_terror/1.png",
                 caption: "Timeline with Missile Strikes",
                 wide: true,
               },
@@ -945,7 +945,7 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/kakhovka_dam_quantifying_terror/2.png",
+                src: "images/kakhovka_dam_quantifying_terror/2.png",
                 caption: "3D Recreation of the dam",
                 wide: true,
               },
@@ -987,7 +987,7 @@ const DATA = {
             blocks: [
               {
                 type: "image",
-                src: "/images/planetary_computation/1.jpg",
+                src: "images/planetary_computation/1.jpg",
                 caption: "Exhibition View 1",
                 wide: true,
               },
@@ -997,12 +997,12 @@ const DATA = {
               },
               {
                 type: "image",
-                src: "/images/planetary_computation/2.jpg",
+                src: "images/planetary_computation/2.jpg",
                 caption: "Exhibition View 2",
               },
               {
                 type: "image",
-                src: "/images/planetary_computation/3.jpg",
+                src: "images/planetary_computation/3.jpg",
                 caption: "Exhibition View 3 - Data Center Typologies",
               },
             ],
