@@ -173,7 +173,7 @@ const DATA = {
         {
           id: "p-surveilling",
           label: "Surveilling the Surveillors",
-          desc: "Obscuring tech CEOs residences with a blur filter that scales with net worth.",
+          desc: "Obscuring CEO's residences with a pixel filter that decays with net worth increases. Aimed at individuals who primarily sell their user's data for profit.",
           media: {
             tag: "Surveillance",
             details: [
@@ -186,7 +186,27 @@ const DATA = {
                 value: "Code, Photography",
               },
             ],
-            blocks: [],
+            blocks: [
+              {
+                type: "image",
+                src: "/images/surveilling_the_surveillors/1.png",
+                caption: "Mark Zuckerberg - Meta - $265 Billion",
+              },
+              {
+                type: "image",
+                src: "/images/surveilling_the_surveillors/2.png",
+                caption: "Peter Thiel - Palantir - $23 Billion",
+              },
+              {
+                type: "text",
+                content: "This series focuses entirely on individuals whose net worths rely on selling user data as a commodity. Photos are updated with live net worth data based on asset appreciation. As they net worth approaches $1 Trillion, the blur fades.",
+              },
+              {
+                type: "image",
+                src: "/images/surveilling_the_surveillors/4.jpg",
+                caption: "Installation View",
+              },
+            ],
           },
         },
         {
@@ -1186,10 +1206,6 @@ const DATA = {
       target: "techaesthetics",
     },
     {
-      source: "p-surveilling",
-      target: "questiontech",
-    },
-    {
       source: "p-planetary",
       target: "wastenetworks",
     },
@@ -1232,6 +1248,10 @@ const DATA = {
     {
       source: "p-workshop-geolocate",
       target: "teaching",
+    },
+    {
+      source: "p-surveilling",
+      target: "questiontech",
     },
   ],
 };
