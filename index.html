@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ashton Reeder</title>
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <link rel="stylesheet" href="https://use.typekit.net/erc2urk.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+  <div id="lightbox">
+    <div id="lightbox-header">
+      <div id="lightbox-meta">
+        <div id="lightbox-tag"></div>
+        <div id="lightbox-title"></div>
+      </div>
+      <button id="lightbox-close">✕ Close</button>
+    </div>
+    <div id="lightbox-body">
+      <div id="lightbox-images"></div>
+      <div id="lightbox-sidebar">
+        <p id="lightbox-desc"></p>
+        <div id="lightbox-details"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lightbox-focus">
+    <img id="lightbox-focus-img" src="" alt="">
+  </div>
+
+  <div id="app">
+    <div id="app-header"></div>
+    <div id="app-body">
+      <div id="left-panel">
+        <div id="left-panel-header">
+          <div class="lp-title">Ashton Reeder</div>
+        </div>
+        <div id="left-panel-bio">
+          <div id="left-desc"></div>
+        </div>
+        <div id="left-panel-scroll">
+          <div id="panel-accordion"></div>
+        </div>
+      </div>
+      <div id="graph">
+        <svg id="svg"></svg>
+        <svg id="cloud-svg"></svg>
+      </div>
+      <div id="right-panel">
+        <div id="mobile-handle">✕</div>
+        <iframe id="ascii-iframe" frameborder="0" scrolling="no"></iframe>
+        <div id="panel-header">
+          <div id="panel-tag"></div>
+          <div id="panel-title"></div>
+        </div>
+        <div id="panel-scroll">
+          <div id="panel-body">
+            <p id="panel-desc"></p>
+            <ul id="panel-list"></ul>
+          </div>
+          <div id="panel-project-detail">
+            <div id="ppd-tag"></div>
+            <div id="ppd-title"></div>
+            <p id="ppd-desc"></p>
+            <div id="ppd-meta"></div>
+            <div id="ppd-gallery"></div>
+          </div>
+        </div>
+        <div id="panel-breadcrumb"></div>
+      </div>
+    </div>
+    <div id="app-footer">
+      <span id="panel-date-text"></span>
+      <button id="cloud-toggle-btn" onclick="toggleCloud()">Interests →</button>
+      <button id="theme-btn" title="Toggle dark mode"></button>
+    </div>
+  </div>
+
+  <script src="projects.js"></script>
+  <script>
+    const _DATA_CHECK = typeof DATA !== 'undefined' || (() => { throw new Error('projects.js failed to load'); })();
+  </script>
+  <script>
+
+    const featuredProjects = [];
+    const seenFeatured = new Set();
+    DATA.practices.forEach(p => {
+      p.projects.forEach(proj => {
+        if (proj.featured && !seenFeatured.has(proj.id)) {
+          seenFeatured.add(proj.id);
+          featuredProjects.push(proj);
+        }
+      });
+    });
+    const existingFeatured = DATA.practices.find(p => p.id === 'featured');
+    if (existingFeatured) {
+      const existingIds = new Set(existingFeatured.projects.map(p => p.id));
+      featuredProjects.forEach(proj => { if (!existingIds.has(proj.id)) existingFeatured.projects.push(proj); });
+    } else if (featuredProjects.length) {
+      DATA.practices.push({ id: 'featured', label: 'Featured', tag: 'Selected Work', desc: 'Highlighted projects from across practices.', projects: featuredProjects });
+    }
+
+    const nodes = [];
+    const links = [];
+    const practiceMap = {};
+    const nodeIndex = {};
+
+    const centerNode = { ...DATA.center };
+    nodes.push(centerNode);
+    nodeIndex['me'] = centerNode;
+
+    DATA.practices.filter(p => p.id !== 'information').forEach(p => {
+      const pNode = { id: p.id, label: p.label, type: 'practice', meta: p };
+      nodes.push(pNode);
+      nodeIndex[p.id] = pNode;
+      links.push({ source: 'me', target: p.id, type: 'main' });
+      practiceMap[p.id] = p;
+
+      p.projects.filter(proj => !proj.wip).forEach(proj => {
+        if (!nodeIndex[proj.id]) {
+          const projNode = { id: proj.id, label: proj.label, type: 'project', primaryParent: p.id, meta: proj };
+          nodes.push(projNode);
+          nodeIndex[proj.id] = projNode;
+        }
+        links.push({ source: p.id, target: proj.id, type: 'sub' });
+
+        if (proj.children) {
+          proj.children.forEach(child => {
+            if (!nodeIndex[child.id]) {
+              const childNode = { id: child.id, label: child.label, type: 'child', primaryParent: proj.id, meta: child };
+              nodes.push(childNode);
+              nodeIndex[child.id] = childNode;
+            }
+            links.push({ source: proj.id, target: child.id, type: 'child' });
+          });
+        }
+      });
+    });
+
+    DATA.crossLinks.forEach(cl => {
+      const already = links.find(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return (s === cl.source && t === cl.target) || (s === cl.target && t === cl.source);
+      });
+      if (!already) links.push({ source: cl.source, target: cl.target, type: 'cross' });
+    });
+
+    const expanded = new Set();
+    const visibleNodes = new Set(['me', ...DATA.practices.map(p => p.id)]);
+
+    function projectsForPractice(pid) {
+      return DATA.practices.find(p => p.id === pid)?.projects.map(p => p.id) || [];
+    }
+    function childrenForProject(projId) {
+      const proj = DATA.practices.flatMap(p => p.projects).find(p => p.id === projId);
+      return proj?.children?.map(c => c.id) || [];
+    }
+
+//D3
+    const svg = d3.select('#svg');
+    const graphEl = document.getElementById('graph');
+    function gW() { return graphEl.offsetWidth; }
+    function gH() { return graphEl.offsetHeight; }
+    const g = svg.append('g');
+
+    const crossLinkLayer = g.append('g').attr('class', 'cross-link-layer');
+    const mainLinkLayer = g.append('g').attr('class', 'main-link-layer');
+    const nodeLayer = g.append('g').attr('class', 'node-layer');
+
+    // Mobile-aware simulation scale — smaller canvas needs tighter forces
+    const mob = () => window.innerWidth <= 680;
+    const simScale = () => mob() ? 0.62 : 1;
+
+    const mainLinkDistances = {};
+    DATA.practices.forEach(p => { mainLinkDistances[p.id] = 110 + Math.random() * 120; });
+
+    function buildForces() {
+      const s = simScale();
+      const cx = gW() * 0.5, cy = gH() * 0.5;
+      simulation
+        .force('link', d3.forceLink().id(d => d.id)
+          .distance(d => {
+            if (d.type === 'main') { const tid = typeof d.target === 'object' ? d.target.id : d.target; return (mainLinkDistances[tid] ?? 160) * s; }
+            if (d.type === 'child') return 55 * s;
+            return 90 * s;
+          })
+          .strength(d => d.type === 'cross' ? 0 : 0.6)
+        )
+        .force('charge', d3.forceManyBody().strength(d => {
+          if (d.type === 'center') return -1100 * s;
+          if (d.type === 'practice') return -500 * s;
+          if (d.type === 'child') return -120 * s;
+          return -220 * s;
+        }))
+        .force('center', d3.forceCenter(cx, cy))
+        .force('xAnchor', d3.forceX(cx).strength(0.04))
+        .force('yAnchor', d3.forceY(cy).strength(mob() ? 0.03 : 0))
+        .force('collision', d3.forceCollide().radius(d => {
+          if (d.type === 'center') return 60 * s;
+          if (d.type === 'practice') return 80 * s;
+          if (d.type === 'child') return 36 * s;
+          return 55 * s;
+        }).strength(0.85));
+    }
+
+    const simulation = d3.forceSimulation();
+    buildForces(); // must run before update() so simulation.force('link') exists
+
+    let mainLinkSel, crossLinkSel, nodeSel;
+
+    const linkKinks = new Map();
+    function linkKey(d) {
+      const s = typeof d.source === 'object' ? d.source.id : d.source;
+      const t = typeof d.target === 'object' ? d.target.id : d.target;
+      return `${s}__${t}`;
+    }
+    function getKinks(key, linkType) {
+      if (!linkKinks.has(key)) {
+        const r = Math.random();
+        const n = r < 0.4 ? 0 : r < 0.75 ? 1 : 2;
+        const scale = linkType === 'main' ? 10 : linkType === 'child' ? 4 : 7;
+        // spread t across most of the line but allow asymmetric placement
+        const tVals = Array.from({ length: n }, () => Math.random() * 0.82 + 0.09).sort((a, b) => a - b);
+        linkKinks.set(key, tVals.map(t => ({ t, p: (Math.random() - 0.5) * 2 * scale })));
+      }
+      return linkKinks.get(key);
+    }
+    function kinkedPath(x1, y1, x2, y2, key, linkType) {
+      const kinks = getKinks(key, linkType);
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const px = -dy / len, py = dx / len;
+      let d = `M ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+      kinks.forEach(({ t, p }) => {
+        d += ` L ${(x1 + dx * t + px * p).toFixed(1)} ${(y1 + dy * t + py * p).toFixed(1)}`;
+      });
+      return d + ` L ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+    }
+
+    function nodeShapeClass(d) {
+      if (d.type !== 'project' && d.type !== 'child') return '';
+      if (d.meta && d.meta.featured) return ''; // handled via featured-node class
+      if (d.type === 'project') {
+        if (d.primaryParent === 'teaching') return 'shape-tri';
+        return '';
+      }
+      if (d.type === 'child') {
+        const practice = DATA.practices.find(p => p.projects.some(pr => pr.id === d.primaryParent));
+        if (practice?.id === 'teaching') return 'shape-tri';
+        return '';
+      }
+      return '';
+    }
+
+    function getVisibleGraph() {
+      const vn = nodes.filter(n => visibleNodes.has(n.id));
+      const visSet = new Set(vn.map(n => n.id));
+      const vl = links.filter(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return visSet.has(s) && visSet.has(t);
+      });
+      return { vn, vl };
+    }
+
+    function update() {
+      const { vn, vl } = getVisibleGraph();
+      const mainLinks = vl.filter(l => l.type !== 'cross');
+      const crossLinks = vl.filter(l => l.type === 'cross');
+      const lkFn = d => {
+        const s = typeof d.source === 'object' ? d.source.id : d.source;
+        const t = typeof d.target === 'object' ? d.target.id : d.target;
+        return `${s}__${t}`;
+      };
+      mainLinkSel = mainLinkLayer.selectAll('path.main-link').data(mainLinks, lkFn);
+      mainLinkSel.exit().each(d => linkKinks.delete(lkFn(d))).transition().duration(200).style('opacity', 0).remove();
+      const mlEnter = mainLinkSel.enter().append('path')
+        .attr('class', 'main-link')
+        .each(d => getKinks(lkFn(d), d.type))
+        .style('stroke', d => {
+          const dark = document.documentElement.classList.contains('dark');
+          return d.type === 'main'
+            ? (dark ? 'rgba(188,181,166,0.22)' : 'rgba(34,30,25,0.22)')
+            : (dark ? 'rgba(188,181,166,0.10)' : 'rgba(34,30,25,0.10)');
+        })
+        .style('stroke-width', d => d.type === 'main' ? '1.5px' : '1px')
+        .style('stroke-linecap', 'round')
+        .style('opacity', 0);
+      mlEnter.transition().duration(300).style('opacity', 1);
+      mainLinkSel = mlEnter.merge(mainLinkSel);
+
+      crossLinkSel = crossLinkLayer.selectAll('line').data(crossLinks, linkKey);
+      crossLinkSel.exit().transition().duration(200).style('opacity', 0).remove();
+      const clEnter = crossLinkSel.enter().append('line').attr('class', 'link-cross').style('opacity', 0);
+      clEnter.transition().duration(400).style('opacity', 1);
+      crossLinkSel = clEnter.merge(crossLinkSel);
+
+      nodeSel = nodeLayer.selectAll('.node').data(vn, d => d.id);
+      nodeSel.exit().transition().duration(200).style('opacity', 0).remove();
+      const nodeEnter = nodeSel.enter().append('g')
+        .attr('class', d => {
+          const sc = nodeShapeClass(d);
+          return [
+            'node', d.type,
+            d.id === 'teaching' ? 'teaching-node' : '',
+            d.id === 'featured' ? 'featured-practice' : '',
+            d.meta && d.meta.featured ? 'featured-node' : '',
+            sc
+          ].filter(Boolean).join(' ');
+        })
+        .style('opacity', 0)
+        .call(d3.drag().on('start', dragstart).on('drag', dragged).on('end', dragend))
+        .on('click', onNodeClick);
+      nodeEnter.append('circle').attr('r', d => d.type === 'center' ? 10 : d.type === 'practice' ? 7 : d.type === 'child' ? 3 : 4.5);
+      // Triangle for teaching practice node
+      nodeEnter.filter(d => d.id === 'teaching')
+        .append('polygon').attr('class', 'node-tri')
+        .attr('points', '0,-9 8,6 -8,6');
+      // Triangle for projects/children under teaching
+      nodeEnter.filter(d => nodeShapeClass(d) === 'shape-tri')
+        .append('polygon').attr('class', 'node-tri')
+        .attr('points', d => d.type === 'child' ? '0,-4 3.5,2.5 -3.5,2.5' : '0,-6 5,3.5 -5,3.5');
+      // Rhombus for featured practice node
+      nodeEnter.filter(d => d.id === 'featured')
+        .append('polygon').attr('class', 'node-rhombus')
+        .attr('points', '0,-5 5,0 0,5 -5,0');
+      // Rhombus for featured project nodes
+      nodeEnter.filter(d => d.meta && d.meta.featured)
+        .append('polygon').attr('class', 'node-rhombus')
+        .attr('points', '0,-4 4,0 0,4 -4,0');
+      nodeEnter.append('text')
+        .attr('x', 0)
+        .attr('y', d => d.type === 'center' ? 22 : d.type === 'practice' ? 20 : d.type === 'child' ? 14 : 17)
+        .attr('text-anchor', 'middle')
+        .text(d => d.label);
+      nodeEnter.transition().duration(300).style('opacity', 1);
+      nodeSel = nodeEnter.merge(nodeSel);
+
+      simulation.nodes(vn);
+      simulation.force('link').links(vl);
+      simulation.alpha(0.45).restart();
+    }
+
+    simulation.on('tick', () => {
+      if (mainLinkSel) mainLinkSel.attr('d', d => {
+        if (!d.source || !d.target) return '';
+        const k = `${d.source.id ?? d.source}__${d.target.id ?? d.target}`;
+        return kinkedPath(d.source.x, d.source.y, d.target.x, d.target.y, k, d.type);
+      });
+      if (crossLinkSel) crossLinkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      if (nodeSel) nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+    // ── Panel ─────────────────────────────────────────────────────────────────
+    const rightPanel = document.getElementById('right-panel');
+    const ppdEl = document.getElementById('panel-project-detail');
+    const panelHeader = document.getElementById('panel-header');
+    const panelTag = document.getElementById('panel-tag');
+    const panelTitle = document.getElementById('panel-title');
+    const panelDesc = document.getElementById('panel-desc');
+    const panelList = document.getElementById('panel-list');
+    const panelCrumb = document.getElementById('panel-breadcrumb');
+    const panelBody = document.getElementById('panel-body');
+    const panelScroll = document.getElementById('panel-scroll');
+    const asciiIframe = document.getElementById('ascii-iframe');
+
+    // Set iframe src once with correct initial theme
+    const initDark = document.documentElement.classList.contains('dark') ? '1' : '0';
+    asciiIframe.src = `/ascii-particles.html?dark=${initDark}`;
+
+    function setAsciiVisible(v) {
+      asciiIframe.classList.toggle('hidden', !v);
+    }
+
+    const isMobile = () => window.innerWidth <= 680;
+
+
+    function setCrumbs(trail) {
+      panelCrumb.innerHTML = '';
+      trail.forEach((c, i) => {
+        const span = document.createElement('span');
+        span.textContent = c.label;
+        span.className = 'crumb' + (i === trail.length - 1 ? ' active' : '');
+        if (i < trail.length - 1) span.addEventListener('click', () => c.nodeId === 'me' ? showCenter() : showPractice(practiceMap[c.nodeId]));
+        panelCrumb.appendChild(span);
+        if (i < trail.length - 1) { const sep = document.createElement('span'); sep.className = 'crumb-sep'; sep.textContent = '/'; panelCrumb.appendChild(sep); }
+      });
+    }
+
+    const panelAccordion = document.getElementById('panel-accordion');
+
+    function buildAccordion(sections) {
+      panelAccordion.innerHTML = '';
+      sections.forEach(section => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'accordion-section';
+
+        const trigger = document.createElement('button');
+        trigger.className = 'accordion-trigger';
+        trigger.innerHTML = `<span>${section.label}</span><span class="accordion-arrow"></span>`;
+
+        const body = document.createElement('div');
+        body.className = 'accordion-body';
+
+        section.items.forEach(item => {
+          const el = document.createElement('div');
+          el.className = 'accordion-item';
+          el.innerHTML = `<div class="accordion-item-title">${item.label}</div><div class="accordion-item-desc">${item.desc}</div>`;
+          body.appendChild(el);
+        });
+
+        trigger.addEventListener('click', () => {
+          const isOpen = body.classList.contains('open');
+          // Close all
+          panelAccordion.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+          panelAccordion.querySelectorAll('.accordion-trigger').forEach(t => t.classList.remove('open'));
+          // Open this one if it was closed
+          if (!isOpen) { body.classList.add('open'); trigger.classList.add('open'); }
+        });
+
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(body);
+        panelAccordion.appendChild(wrapper);
+      });
+    }
+
+    function clearAccordion() { panelAccordion.innerHTML = ''; }
+
+    function fadePanel(fn) {
+      [panelDesc, panelList, panelTag, panelTitle].forEach(el => el.style.opacity = '0');
+      setTimeout(() => { fn();[panelDesc, panelList, panelTag, panelTitle].forEach(el => el.style.opacity = '1'); }, 180);
+    }
+
+    function showCenter() {
+      ppdEl && ppdEl.classList.remove('open');
+      panelBody.style.display = '';
+      panelHeader.classList.remove('active');
+      setAsciiVisible(true);
+      rightPanel.classList.remove('mobile-open');
+      panelTag.textContent = '';
+      panelTitle.textContent = '';
+      panelDesc.textContent = '';
+      panelList.innerHTML = '';
+      panelList.classList.remove('open');
+      panelCrumb.innerHTML = '';
+    }
+
+    function showPractice(practice) {
+      fadePanel(() => {
+        setAsciiVisible(false);
+        if (isMobile()) rightPanel.classList.add('mobile-open');
+        panelBody.style.display = '';
+        panelScroll.scrollTop = 0;
+        panelHeader.classList.add('active');
+        panelTag.textContent = practice.tag;
+        panelTitle.textContent = practice.label;
+        panelDesc.textContent = practice.desc;
+        panelList.innerHTML = '';
+        panelList.classList.remove('open');
+        ppdEl.classList.remove('open');
+        practice.projects.forEach(proj => { const li = document.createElement('li'); li.textContent = proj.label; panelList.appendChild(li); });
+        if (practice.projects.length) panelList.classList.add('open');
+        setCrumbs([{ label: 'Ashton Reeder', nodeId: 'me' }, { label: practice.label, nodeId: practice.id }]);
+      });
+    }
+
+    function showProject(proj, practice) {
+      fadePanel(() => {
+        panelTag.textContent = 'Project';
+        panelTitle.textContent = proj.label;
+        panelDesc.textContent = proj.desc;
+        panelList.innerHTML = '';
+        panelList.classList.remove('open');
+        clearAccordion();
+        if (proj.children && proj.children.length) {
+          buildAccordion([{ label: proj.label, items: proj.children }]);
+          const t = panelAccordion.querySelector('.accordion-trigger');
+          const b = panelAccordion.querySelector('.accordion-body');
+          if (t && b) { t.classList.add('open'); b.classList.add('open'); }
+        }
+        // View Work button if project has media
+        const existing = document.getElementById('panel-view-btn');
+        if (existing) existing.remove();
+        if (proj.media) {
+          const btn = document.createElement('button');
+          btn.id = 'panel-view-btn';
+          btn.className = 'panel-view-btn';
+          btn.textContent = 'View Work →';
+          btn.addEventListener('click', () => openLightbox(proj));
+          document.getElementById('panel-body').appendChild(btn);
+        }
+        setCrumbs([{ label: 'Ashton Reeder', nodeId: 'me' }, { label: practice.label, nodeId: practice.id }, { label: proj.label, nodeId: proj.id }]);
+      });
+    }
+
+    const zoomBehavior = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform));
+    svg.call(zoomBehavior);
+
+    let focusedPractice = null;
+
+    function zoomToConstellation(practiceNode) {
+      projectsForPractice(practiceNode.id).forEach(id => visibleNodes.add(id));
+      expanded.add(practiceNode.id);
+      update();
+
+      setTimeout(() => {
+        const projIds = projectsForPractice(practiceNode.id);
+        const constellationNodes = ['me', practiceNode.id, ...projIds].map(id => nodeIndex[id]).filter(n => n && n.x != null);
+        if (constellationNodes.length < 2) return;
+
+        const xs = constellationNodes.map(n => n.x);
+        const ys = constellationNodes.map(n => n.y);
+        const x0 = Math.min(...xs), x1 = Math.max(...xs);
+        const y0 = Math.min(...ys), y1 = Math.max(...ys);
+        const pad = mob() ? 50 : 140;
+        const targetX = gW() * 0.5;
+        const scale = Math.min(0.9 * gW() / (x1 - x0 + pad * 2), 0.9 * gH() / (y1 - y0 + pad * 2), mob() ? 3.5 : 2.2);
+        const tx = targetX - scale * ((x0 + x1) / 2);
+        const ty = gH() / 2 - scale * ((y0 + y1) / 2);
+        svg.transition().duration(700).ease(d3.easeCubicInOut).call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+        const allKids = projIds.flatMap(id => childrenForProject(id));
+        const keep = new Set(['me', practiceNode.id, ...projIds, ...allKids]);
+        nodeLayer.selectAll('.node').each(function (d) {
+          const isPracticeOther = d.type === 'practice' && d.id !== practiceNode.id;
+          d3.select(this).classed('dimmed', !keep.has(d.id) && !isPracticeOther).classed('focused', d.id === practiceNode.id).style('opacity', isPracticeOther ? '0.22' : null);
+        });
+        mainLinkLayer.selectAll('path.main-link').each(function (d) {
+          const s = typeof d.source === 'object' ? d.source.id : d.source;
+          const t = typeof d.target === 'object' ? d.target.id : d.target;
+          d3.select(this).classed('dimmed', !(keep.has(s) && keep.has(t)));
+        });
+        crossLinkLayer.selectAll('line').each(function (d) {
+          const s = typeof d.source === 'object' ? d.source.id : d.source;
+          const t = typeof d.target === 'object' ? d.target.id : d.target;
+          const touches = projIds.includes(s) || projIds.includes(t);
+          d3.select(this).classed('dimmed', false).style('opacity', touches ? '0.08' : '0.02').style('stroke-dasharray', '3 6');
+        });
+      }, 300);
+    }
+
+    function zoomOut() {
+      expanded.forEach(pid => projectsForPractice(pid).forEach(id => {
+        childrenForProject(id).forEach(cid => visibleNodes.delete(cid));
+        visibleNodes.delete(id);
+      }));
+      expanded.clear();
+      focusedPractice = null;
+      ppdEl.classList.remove('open');
+      update();
+      nodeLayer.selectAll('.node').classed('dimmed', false).classed('focused', false).style('opacity', null);
+      mainLinkLayer.selectAll('path.main-link').classed('dimmed', false);
+      crossLinkLayer.selectAll('line').classed('dimmed', false).style('opacity', null).style('stroke-dasharray', null);
+      const scale = mob() ? 0.72 : 0.85;
+      svg.transition().duration(600).ease(d3.easeCubicInOut).call(zoomBehavior.transform, d3.zoomIdentity.translate(gW() / 2, gH() / 2).scale(scale).translate(-gW() / 2, -gH() / 2));
+      showCenter();
+    }
+
+
+    function onNodeClick(event, d) {
+      event.stopPropagation();
+      if (d.type === 'center') { zoomOut(); return; }
+      if (d.type === 'practice') {
+        if (focusedPractice === d.id) { zoomOut(); return; }
+        if (focusedPractice) {
+          projectsForPractice(focusedPractice).forEach(id => {
+            childrenForProject(id).forEach(cid => visibleNodes.delete(cid));
+            visibleNodes.delete(id);
+          });
+          expanded.delete(focusedPractice);
+        }
+        focusedPractice = d.id;
+        ppdEl.classList.remove('open');
+        zoomToConstellation(d);
+        return;
+      }
+      if (d.type === 'project') {
+        const practice = practiceMap[d.primaryParent];
+        const kids = childrenForProject(d.id);
+        if (kids.length) {
+          if (visibleNodes.has(kids[0])) {
+            kids.forEach(id => visibleNodes.delete(id));
+          } else {
+            kids.forEach(id => visibleNodes.add(id));
+          }
+          update();
+        }
+        openPopup(d.meta, practice);
+        return;
+      }
+      if (d.type === 'child') {
+        const parentProj = DATA.practices.flatMap(p => p.projects).find(p => p.id === d.primaryParent);
+        openPopup(d.meta, parentProj);
+      }
+    }
+
+    svg.on('click', event => {
+      if (event.target === svg.node() || event.target.tagName === 'svg') {
+        if (focusedPractice) zoomOut();
+      }
+    });
+
+    function dragstart(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+    function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+    function dragend(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+    window.addEventListener('resize', () => {
+      DATA.practices.forEach(p => { mainLinkDistances[p.id] = 110 + Math.random() * 120; });
+      buildForces();
+      simulation.alpha(0.3).restart();
+      applyInitialZoom();
+    });
+
+    function applyInitialZoom() {
+      const scale = mob() ? 0.72 : 0.85;
+      svg.call(zoomBehavior.transform,
+        d3.zoomIdentity.translate(gW() / 2, gH() / 2).scale(scale).translate(-gW() / 2, -gH() / 2)
+      );
+    }
+
+    update();
+    showCenter();
+    // Double rAF — wait for layout so gW()/gH() return real dimensions,
+    // then rebuild forces with accurate center coords and re-bind links
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      buildForces();
+      update();
+      applyInitialZoom();
+    }));
+
+    // Init left panel — render bio as paragraphs (split on \n\n or auto-split sentences)
+    const leftDesc = document.getElementById('left-desc');
+    const bioParas = DATA.center.desc.split(/\n\n+/);
+    bioParas.forEach(para => {
+      const p = document.createElement('p');
+      p.textContent = para.trim();
+      leftDesc.appendChild(p);
+    });
+    const info = DATA.practices.find(p => p.id === 'information');
+    if (info) buildAccordion(info.projects.map(p => ({ label: p.label, items: p.children || [] })));
+
+    // ── Panel project detail ───────────────────────────────────────────────────
+    const ppdTag = document.getElementById('ppd-tag');
+    const ppdTitle = document.getElementById('ppd-title');
+    const ppdDesc = document.getElementById('ppd-desc');
+    const ppdMeta = document.getElementById('ppd-meta');
+    const ppdGallery = document.getElementById('ppd-gallery');
+
+    function openPopup(meta, parentMeta) {
+      setAsciiVisible(false);
+      if (isMobile()) rightPanel.classList.add('mobile-open');
+      panelBody.style.display = 'none';
+      panelHeader.classList.remove('active');
+      panelScroll.scrollTop = 0;
+      ppdTag.textContent = (meta.media && meta.media.tag) || (parentMeta && parentMeta.label) || '';
+      ppdTitle.textContent = meta.label;
+      ppdDesc.textContent = meta.desc || '';
+      ppdMeta.innerHTML = '';
+      ppdGallery.innerHTML = '';
+
+      const media = meta.media || {};
+
+      // Render metadata details
+      if (media.details && media.details.length) {
+        media.details.forEach(d => {
+          const row = document.createElement('div');
+          row.className = 'ppd-meta-row';
+          row.innerHTML = `<span class="ppd-meta-label">${d.label}</span><span class="ppd-meta-value">${d.value}</span>`;
+          ppdMeta.appendChild(row);
+        });
+      }
+
+      // Render blocks if present (new format), else fall back to legacy images[]
+      const blocks = media.blocks && media.blocks.length ? media.blocks
+        : (media.images || []).map(img => ({ type: 'image', src: img.src, caption: img.caption, wide: img.wide }));
+
+      blocks.forEach(block => {
+        const wrap = document.createElement('div');
+        wrap.className = 'ppd-block';
+
+        if (block.type === 'text') {
+          const p = document.createElement('div');
+          p.className = 'ppd-block-text';
+          p.textContent = block.content || '';
+          wrap.appendChild(p);
+
+        } else if (block.type === 'image') {
+          const imgWrap = document.createElement('div');
+          imgWrap.className = 'ppd-img-wrap';
+          const img = document.createElement('img');
+          img.alt = block.caption || '';
+          img.onload = () => img.classList.add('loaded');
+          img.src = block.src;
+          img.style.cursor = 'zoom-in';
+          img.addEventListener('click', () => {
+            lbFocusImg.src = block.src;
+            lbFocus.classList.add('open');
+          });
+          imgWrap.appendChild(img);
+          if (block.caption && block.caption !== '——') {
+            const cap = document.createElement('div');
+            cap.className = 'ppd-img-cap';
+            cap.textContent = block.caption;
+            imgWrap.appendChild(cap);
+          }
+          wrap.appendChild(imgWrap);
+
+        } else if (block.type === 'link') {
+          const a = document.createElement('a');
+          a.className = 'ppd-link';
+          a.href = block.url || '#';
+          a.textContent = block.label || block.url || 'Link';
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          wrap.appendChild(a);
+        }
+
+        ppdGallery.appendChild(wrap);
+      });
+
+      ppdEl.classList.add('open');
+    }
+
+    const lightbox = document.getElementById('lightbox');
+    const lbTag = document.getElementById('lightbox-tag');
+    const lbTitle = document.getElementById('lightbox-title');
+    const lbImages = document.getElementById('lightbox-images');
+    const lbDesc = document.getElementById('lightbox-desc');
+    const lbDetails = document.getElementById('lightbox-details');
+    const lbClose = document.getElementById('lightbox-close');
+    const lbFocus = document.getElementById('lightbox-focus');
+    const lbFocusImg = document.getElementById('lightbox-focus-img');
+
+    function openLightbox(proj) {
+      const m = proj.media;
+      lbTag.textContent = m.tag || 'Work';
+      lbTitle.textContent = proj.label;
+      lbDesc.textContent = proj.desc;
+
+      // Details
+      lbDetails.innerHTML = '';
+      (m.details || []).forEach(d => {
+        const block = document.createElement('div');
+        block.className = 'lb-detail-block';
+        block.innerHTML = `<div class="lb-detail-label">${d.label}</div><div class="lb-detail-value">${d.value}</div>`;
+        lbDetails.appendChild(block);
+      });
+
+      // Images
+      lbImages.innerHTML = '';
+      (m.images || []).forEach(img => {
+        const wrap = document.createElement('div');
+        wrap.className = 'lb-img-wrap' + (img.wide ? ' wide' : '');
+        const el = document.createElement('img');
+        el.alt = img.caption || '';
+        el.onload = () => el.classList.add('loaded');
+        el.src = img.src;
+        wrap.appendChild(el);
+        if (img.caption) {
+          const cap = document.createElement('div');
+          cap.className = 'lb-caption';
+          cap.textContent = img.caption;
+          wrap.appendChild(cap);
+        }
+        wrap.addEventListener('click', () => {
+          lbFocusImg.src = img.src;
+          lbFocus.classList.add('open');
+        });
+        lbImages.appendChild(wrap);
+      });
+
+      lightbox.classList.add('open');
+    }
+
+    lbClose.addEventListener('click', () => lightbox.classList.remove('open'));
+    lightbox.addEventListener('keydown', e => { if (e.key === 'Escape') lightbox.classList.remove('open'); });
+    lbFocus.addEventListener('click', () => lbFocus.classList.remove('open'));
+
+    document.getElementById('theme-btn').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      const dark = document.documentElement.classList.contains('dark');
+      mainLinkLayer.selectAll('path.main-link')
+        .style('stroke', function () {
+          const d = d3.select(this).datum();
+          return d && d.type === 'main'
+            ? (dark ? 'rgba(188,181,166,0.22)' : 'rgba(34,30,25,0.22)')
+            : (dark ? 'rgba(188,181,166,0.10)' : 'rgba(34,30,25,0.10)');
+        });
+      asciiIframe.contentWindow?.postMessage({ type: 'theme', dark }, '*');
+    });
+
+
+    document.getElementById('mobile-handle').addEventListener('click', () => {
+      if (isMobile()) zoomOut();
+    });
+
+    const CLOUD_NODES = [
+      { id: 'surveillance-cameras', label: 'surveillance cameras' },
+      { id: 'financial-districts', label: 'financial districts' },
+      { id: 'data-centers', label: 'data centers' },
+      { id: 'traffic-patterns', label: 'traffic patterns' },
+      { id: 'air-quality', label: 'air quality' },
+      { id: 'prediction-markets', label: 'prediction markets' },
+      { id: 'cartography', label: 'cartography' },
+      { id: 'bike-lanes', label: 'bike lanes' },
+      { id: 'bridges', label: 'bridges' },
+      { id: 'skyscrapers', label: 'skyscrapers' },
+      { id: 'density', label: 'density' },
+      { id: 'botfarms', label: 'botfarms' },
+      { id: 'border-walls', label: 'border walls' },
+      { id: 'e-waste', label: 'e-waste facilities' },
+      { id: 'cell-phone-markets', label: 'cell phone markets' },
+      { id: 'lithium-mines', label: 'lithium mines' },
+      { id: 'autonomous-car-depots', label: 'autonomous car depots' },
+      { id: 'subsea-cables', label: 'subsea cables' },
+      { id: 'chatbots', label: 'chatbots' },
+      { id: 'motors', label: 'motors' },
+      { id: 'obfuscation', label: 'obfuscation' },
+      { id: 'mesh-networks', label: 'mesh networks' },
+      { id: 'stock-tickers', label: 'stock tickers' },
+      { id: 'clocks', label: 'clocks' },
+      { id: 'military-bases', label: 'military bases' },
+      { id: 'drones', label: 'drones' },
+      { id: 'thermal-imaging', label: 'thermal imaging' },
+      { id: 'security', label: 'security' },
+      { id: 'weaponry', label: 'weaponry' },
+      { id: 'missile-test-facilities', label: 'missile test facilities' },
+      { id: 'deserts', label: 'deserts' },
+      { id: 'beaches', label: 'beaches' },
+      { id: 'dunes', label: 'dunes' },
+      { id: 'collections', label: 'collections' },
+      { id: 'disruption', label: 'disruption' },
+      { id: 'satellites', label: 'satellites' },
+      { id: 'bunkers', label: 'bunkers' },
+      { id: 'data-brokerage', label: 'data brokerage' },
+      { id: 'ship-breaking', label: 'ship breaking facilities' },
+      { id: 'far-lands', label: 'far lands' },
+      { id: 'microenvironments', label: 'microenvironments' },
+      { id: 'community-tech', label: 'community technology' },
+      { id: 'home-robots', label: 'home robots' },
+      { id: 'second-homes', label: 'second homes' },
+      { id: 'golf-courses', label: 'golf courses' },
+      { id: 'public-parks', label: 'public parks' },
+      { id: 'private-parks', label: 'private parks' },
+      { id: 'bricks', label: 'bricks' },
+      { id: 'autonomous-weaponry', label: 'autonomous weaponry' },
+      { id: 'needles', label: 'needles' },
+      { id: 'networks', label: 'networks' },
+      { id: 'streaming-services', label: 'streaming services' },
+      { id: 'militarization', label: 'militarization' },
+      { id: 'workshops', label: 'workshops' },
+      { id: 'digital-twins', label: 'digital twins' },
+      { id: 'apis', label: 'APIs' },
+      { id: 'silicon-valley', label: 'Silicon Valley' },
+      { id: 'basements', label: 'basements' },
+      { id: 'ventilation-shafts', label: 'ventilation shafts' },
+      { id: 'lidar', label: 'LiDAR' },
+      { id: 'suburban-life', label: 'suburban life' },
+      { id: 'chip-factories', label: 'chip factories' },
+      { id: 'robot-arms', label: 'robot arms' },
+      { id: 'union-meetings', label: 'union meetings' },
+      { id: 'led-panels', label: 'LED panels' },
+      { id: 'lightning', label: 'lightning' },
+      { id: 'forgery', label: 'forgery' },
+      { id: 'radio', label: 'radio' },
+      { id: 'lotteries', label: 'lotteries' },
+      { id: 'loot-boxes', label: 'loot boxes' },
+      { id: 'casinos', label: 'casinos' },
+      { id: 'logistics-centers', label: 'logistics centers' },
+      { id: 'expanse-west', label: 'expanse of the west' },
+      { id: 'semi-trucks', label: 'semi trucks' },
+      { id: 'fireworks', label: 'fireworks' },
+      { id: 'transition-zones', label: 'transition zones' },
+      { id: 'escalators', label: 'escalators' },
+      { id: 'second-hand-stores', label: '2nd hand stores' },
+      { id: 'cockroaches', label: 'cockroaches' },
+      { id: 'cigarettes', label: 'cigarettes' },
+      { id: 'company-towns', label: 'company towns' },
+      { id: 'parking-enforcement', label: 'parking enforcement' },
+      { id: 'mars-colonies', label: 'mars colonies' },
+      { id: 'cashless-societies', label: 'cashless societies' },
+      { id: 'online-shopping', label: 'online shopping' },
+      { id: 'production-lines', label: 'production lines' },
+      { id: 'hacker-spaces', label: 'hacker spaces' },
+      { id: 'power-plants', label: 'power plants' },
+      { id: 'solar-farms', label: 'solar farms' },
+      { id: 'livestreams', label: 'livestreams' },
+      { id: 'data-brokers', label: 'data brokers' },
+      { id: 'office-towers', label: 'office towers' },
+    ];
+
+    const CLOUD_RAW_LINKS = [
+      // surveillance & sensing apparatus
+      ['surveillance-cameras', 'drones'],
+      ['surveillance-cameras', 'thermal-imaging'],
+      ['surveillance-cameras', 'lidar'],
+      ['surveillance-cameras', 'military-bases'],
+      ['surveillance-cameras', 'border-walls'],
+      ['surveillance-cameras', 'security'],
+      ['surveillance-cameras', 'traffic-patterns'],
+      ['surveillance-cameras', 'parking-enforcement'],
+      ['surveillance-cameras', 'data-brokerage'],
+      ['surveillance-cameras', 'financial-districts'],
+      ['surveillance-cameras', 'casinos'],
+      ['drones', 'autonomous-weaponry'],
+      ['drones', 'military-bases'],
+      ['drones', 'thermal-imaging'],
+      ['drones', 'lidar'],
+      ['drones', 'satellites'],
+      ['drones', 'logistics-centers'],
+      ['drones', 'motors'],
+      ['drones', 'chip-factories'],
+      ['drones', 'border-walls'],
+      ['thermal-imaging', 'border-walls'],
+      ['thermal-imaging', 'microenvironments'],
+      ['thermal-imaging', 'power-plants'],
+      ['thermal-imaging', 'bunkers'],
+      ['thermal-imaging', 'data-centers'],
+      ['lidar', 'cartography'],
+      ['lidar', 'autonomous-car-depots'],
+      ['lidar', 'digital-twins'],
+      ['lidar', 'traffic-patterns'],
+      ['lidar', 'microenvironments'],
+      ['lidar', 'ship-breaking'],
+
+      // military-industrial complex
+      ['military-bases', 'weaponry'],
+      ['military-bases', 'bunkers'],
+      ['military-bases', 'missile-test-facilities'],
+      ['military-bases', 'deserts'],
+      ['military-bases', 'radio'],
+      ['military-bases', 'company-towns'],
+      ['military-bases', 'logistics-centers'],
+      ['military-bases', 'cartography'],
+      ['military-bases', 'satellites'],
+      ['weaponry', 'autonomous-weaponry'],
+      ['weaponry', 'militarization'],
+      ['weaponry', 'production-lines'],
+      ['weaponry', 'forgery'],
+      ['weaponry', 'logistics-centers'],
+      ['weaponry', 'bunkers'],
+      ['autonomous-weaponry', 'militarization'],
+      ['autonomous-weaponry', 'border-walls'],
+      ['autonomous-weaponry', 'silicon-valley'],
+      ['autonomous-weaponry', 'chip-factories'],
+      ['autonomous-weaponry', 'autonomous-car-depots'],
+      ['militarization', 'border-walls'],
+      ['militarization', 'fireworks'],
+      ['militarization', 'parking-enforcement'],
+      ['militarization', 'silicon-valley'],
+      ['militarization', 'logistics-centers'],
+      ['missile-test-facilities', 'deserts'],
+      ['missile-test-facilities', 'far-lands'],
+      ['missile-test-facilities', 'expanse-west'],
+      ['missile-test-facilities', 'bunkers'],
+      ['missile-test-facilities', 'cartography'],
+      ['missile-test-facilities', 'transition-zones'],
+      ['bunkers', 'basements'],
+      ['bunkers', 'security'],
+      ['bunkers', 'data-centers'],
+      ['bunkers', 'far-lands'],
+      ['bunkers', 'ventilation-shafts'],
+      ['bunkers', 'second-homes'],
+      ['bunkers', 'radio'],
+
+      // obfuscation & information control
+      ['obfuscation', 'forgery'],
+      ['obfuscation', 'security'],
+      ['obfuscation', 'data-brokerage'],
+      ['obfuscation', 'botfarms'],
+      ['obfuscation', 'chatbots'],
+      ['obfuscation', 'radio'],
+      ['obfuscation', 'mesh-networks'],
+      ['obfuscation', 'hacker-spaces'],
+      ['botfarms', 'chatbots'],
+      ['botfarms', 'prediction-markets'],
+      ['botfarms', 'streaming-services'],
+      ['botfarms', 'financial-districts'],
+      ['botfarms', 'data-brokerage'],
+      ['forgery', 'collections'],
+      ['forgery', 'digital-twins'],
+      ['forgery', 'chatbots'],
+      ['forgery', 'second-hand-stores'],
+
+      // satellites & space
+      ['satellites', 'cartography'],
+      ['satellites', 'mars-colonies'],
+      ['satellites', 'subsea-cables'],
+      ['satellites', 'military-bases'],
+      ['satellites', 'radio'],
+      ['satellites', 'data-centers'],
+      ['satellites', 'mesh-networks'],
+      ['satellites', 'far-lands'],
+      ['mars-colonies', 'deserts'],
+      ['mars-colonies', 'digital-twins'],
+      ['mars-colonies', 'solar-farms'],
+      ['mars-colonies', 'robot-arms'],
+      ['mars-colonies', 'silicon-valley'],
+      ['mars-colonies', 'radio'],
+      ['mars-colonies', 'far-lands'],
+
+      // data infrastructure & flows
+      ['data-centers', 'subsea-cables'],
+      ['data-centers', 'chip-factories'],
+      ['data-centers', 'silicon-valley'],
+      ['data-centers', 'power-plants'],
+      ['data-centers', 'data-brokerage'],
+      ['data-centers', 'data-brokers'],
+      ['data-centers', 'ventilation-shafts'],
+      ['data-centers', 'streaming-services'],
+      ['data-centers', 'deserts'],
+      ['data-centers', 'lightning'],
+      ['data-centers', 'air-quality'],
+      ['data-centers', 'lithium-mines'],
+      ['subsea-cables', 'networks'],
+      ['subsea-cables', 'cartography'],
+      ['subsea-cables', 'beaches'],
+      ['subsea-cables', 'ship-breaking'],
+      ['subsea-cables', 'financial-districts'],
+      ['subsea-cables', 'far-lands'],
+      ['networks', 'radio'],
+      ['networks', 'mesh-networks'],
+      ['networks', 'cell-phone-markets'],
+      ['networks', 'streaming-services'],
+      ['networks', 'logistics-centers'],
+      ['mesh-networks', 'community-tech'],
+      ['mesh-networks', 'hacker-spaces'],
+      ['mesh-networks', 'workshops'],
+      ['mesh-networks', 'basements'],
+      ['apis', 'chatbots'],
+      ['apis', 'digital-twins'],
+      ['apis', 'livestreams'],
+      ['apis', 'data-brokers'],
+      ['apis', 'prediction-markets'],
+      ['apis', 'botfarms'],
+      ['apis', 'hacker-spaces'],
+      ['apis', 'stock-tickers'],
+      ['chatbots', 'streaming-services'],
+      ['chatbots', 'data-brokerage'],
+      ['digital-twins', 'autonomous-car-depots'],
+      ['digital-twins', 'logistics-centers'],
+      ['digital-twins', 'production-lines'],
+      ['digital-twins', 'power-plants'],
+      ['digital-twins', 'cartography'],
+      ['streaming-services', 'data-centers'],
+      ['streaming-services', 'subsea-cables'],
+      ['streaming-services', 'led-panels'],
+      ['streaming-services', 'loot-boxes'],
+      ['livestreams', 'led-panels'],
+      ['livestreams', 'surveillance-cameras'],
+      ['livestreams', 'botfarms'],
+      ['livestreams', 'community-tech'],
+
+      // chip supply chain
+      ['chip-factories', 'silicon-valley'],
+      ['chip-factories', 'lithium-mines'],
+      ['chip-factories', 'production-lines'],
+      ['chip-factories', 'ventilation-shafts'],
+      ['chip-factories', 'deserts'],
+      ['chip-factories', 'logistics-centers'],
+      ['chip-factories', 'disruption'],
+      ['chip-factories', 'autonomous-weaponry'],
+      ['cell-phone-markets', 'e-waste'],
+      ['cell-phone-markets', 'lithium-mines'],
+      ['cell-phone-markets', 'data-brokerage'],
+      ['cell-phone-markets', 'surveillance-cameras'],
+      ['cell-phone-markets', 'streaming-services'],
+      ['cell-phone-markets', 'cashless-societies'],
+      ['cell-phone-markets', 'botfarms'],
+      ['cell-phone-markets', 'second-hand-stores'],
+      ['e-waste', 'ship-breaking'],
+      ['e-waste', 'lithium-mines'],
+      ['e-waste', 'second-hand-stores'],
+      ['e-waste', 'air-quality'],
+      ['e-waste', 'deserts'],
+      ['e-waste', 'production-lines'],
+      ['lithium-mines', 'deserts'],
+      ['lithium-mines', 'dunes'],
+      ['lithium-mines', 'solar-farms'],
+      ['lithium-mines', 'power-plants'],
+      ['lithium-mines', 'autonomous-car-depots'],
+      ['lithium-mines', 'air-quality'],
+
+      // financial systems
+      ['financial-districts', 'skyscrapers'],
+      ['financial-districts', 'office-towers'],
+      ['financial-districts', 'stock-tickers'],
+      ['financial-districts', 'cashless-societies'],
+      ['financial-districts', 'prediction-markets'],
+      ['financial-districts', 'clocks'],
+      ['financial-districts', 'led-panels'],
+      ['financial-districts', 'data-centers'],
+      ['financial-districts', 'subsea-cables'],
+      ['financial-districts', 'botfarms'],
+      ['stock-tickers', 'prediction-markets'],
+      ['stock-tickers', 'cashless-societies'],
+      ['stock-tickers', 'clocks'],
+      ['stock-tickers', 'led-panels'],
+      ['stock-tickers', 'data-brokerage'],
+      ['stock-tickers', 'botfarms'],
+      ['stock-tickers', 'apis'],
+      ['prediction-markets', 'data-brokerage'],
+      ['prediction-markets', 'lotteries'],
+      ['prediction-markets', 'loot-boxes'],
+      ['cashless-societies', 'online-shopping'],
+      ['cashless-societies', 'parking-enforcement'],
+      ['cashless-societies', 'data-brokerage'],
+      ['cashless-societies', 'lotteries'],
+      ['cashless-societies', 'casinos'],
+      ['lotteries', 'casinos'],
+      ['lotteries', 'loot-boxes'],
+      ['lotteries', 'company-towns'],
+      ['casinos', 'loot-boxes'],
+      ['casinos', 'deserts'],
+      ['casinos', 'led-panels'],
+      ['casinos', 'ventilation-shafts'],
+      ['casinos', 'data-brokerage'],
+      ['loot-boxes', 'cigarettes'],
+      ['loot-boxes', 'online-shopping'],
+      ['data-brokerage', 'data-brokers'],
+      ['data-brokerage', 'forgery'],
+      ['data-brokerage', 'collections'],
+      ['data-brokers', 'parking-enforcement'],
+      ['data-brokers', 'online-shopping'],
+      ['data-brokers', 'collections'],
+
+      // urban morphology
+      ['skyscrapers', 'density'],
+      ['skyscrapers', 'ventilation-shafts'],
+      ['skyscrapers', 'led-panels'],
+      ['skyscrapers', 'office-towers'],
+      ['skyscrapers', 'lightning'],
+      ['skyscrapers', 'data-centers'],
+      ['skyscrapers', 'bricks'],
+      ['density', 'bike-lanes'],
+      ['density', 'traffic-patterns'],
+      ['density', 'bridges'],
+      ['density', 'escalators'],
+      ['density', 'public-parks'],
+      ['density', 'air-quality'],
+      ['density', 'microenvironments'],
+      ['density', 'surveillance-cameras'],
+      ['office-towers', 'escalators'],
+      ['office-towers', 'led-panels'],
+      ['office-towers', 'ventilation-shafts'],
+      ['office-towers', 'surveillance-cameras'],
+      ['office-towers', 'bricks'],
+      ['office-towers', 'company-towns'],
+      ['bridges', 'bricks'],
+      ['bridges', 'transition-zones'],
+      ['bridges', 'border-walls'],
+      ['bridges', 'semi-trucks'],
+      ['bridges', 'surveillance-cameras'],
+      ['bike-lanes', 'public-parks'],
+      ['bike-lanes', 'community-tech'],
+      ['bike-lanes', 'traffic-patterns'],
+      ['bike-lanes', 'transition-zones'],
+      ['escalators', 'suburban-life'],
+      ['escalators', 'logistics-centers'],
+      ['escalators', 'motors'],
+      ['escalators', 'led-panels'],
+      ['bricks', 'border-walls'],
+      ['bricks', 'company-towns'],
+      ['bricks', 'basements'],
+      ['bricks', 'suburban-life'],
+      ['bricks', 'production-lines'],
+      ['parking-enforcement', 'traffic-patterns'],
+      ['parking-enforcement', 'surveillance-cameras'],
+      ['parking-enforcement', 'autonomous-car-depots'],
+      ['parking-enforcement', 'militarization'],
+      ['parking-enforcement', 'clocks'],
+
+      // suburban & domestic
+      ['suburban-life', 'second-homes'],
+      ['suburban-life', 'golf-courses'],
+      ['suburban-life', 'parking-enforcement'],
+      ['suburban-life', 'company-towns'],
+      ['suburban-life', 'home-robots'],
+      ['suburban-life', 'needles'],
+      ['suburban-life', 'surveillance-cameras'],
+      ['suburban-life', 'bricks'],
+      ['suburban-life', 'autonomous-car-depots'],
+      ['suburban-life', 'solar-farms'],
+      ['suburban-life', 'transition-zones'],
+      ['second-homes', 'golf-courses'],
+      ['second-homes', 'private-parks'],
+      ['second-homes', 'deserts'],
+      ['second-homes', 'beaches'],
+      ['second-homes', 'bunkers'],
+      ['second-homes', 'surveillance-cameras'],
+      ['second-homes', 'transition-zones'],
+      ['golf-courses', 'private-parks'],
+      ['golf-courses', 'deserts'],
+      ['golf-courses', 'cartography'],
+      ['golf-courses', 'air-quality'],
+      ['golf-courses', 'transition-zones'],
+      ['public-parks', 'private-parks'],
+      ['public-parks', 'surveillance-cameras'],
+      ['public-parks', 'needles'],
+      ['public-parks', 'community-tech'],
+      ['public-parks', 'microenvironments'],
+      ['public-parks', 'air-quality'],
+      ['private-parks', 'security'],
+      ['private-parks', 'surveillance-cameras'],
+      ['basements', 'hacker-spaces'],
+      ['basements', 'workshops'],
+      ['basements', 'home-robots'],
+      ['basements', 'ventilation-shafts'],
+      ['basements', 'microenvironments'],
+      ['basements', 'cockroaches'],
+
+      // logistics & movement
+      ['logistics-centers', 'semi-trucks'],
+      ['logistics-centers', 'autonomous-car-depots'],
+      ['logistics-centers', 'drones'],
+      ['logistics-centers', 'production-lines'],
+      ['logistics-centers', 'solar-farms'],
+      ['logistics-centers', 'robot-arms'],
+      ['logistics-centers', 'surveillance-cameras'],
+      ['logistics-centers', 'digital-twins'],
+      ['logistics-centers', 'air-quality'],
+      ['logistics-centers', 'ship-breaking'],
+      ['semi-trucks', 'autonomous-car-depots'],
+      ['semi-trucks', 'expanse-west'],
+      ['semi-trucks', 'motors'],
+      ['semi-trucks', 'traffic-patterns'],
+      ['semi-trucks', 'union-meetings'],
+      ['semi-trucks', 'air-quality'],
+      ['semi-trucks', 'deserts'],
+      ['semi-trucks', 'ship-breaking'],
+      ['autonomous-car-depots', 'lidar'],
+      ['autonomous-car-depots', 'drones'],
+      ['autonomous-car-depots', 'motors'],
+      ['autonomous-car-depots', 'silicon-valley'],
+      ['autonomous-car-depots', 'digital-twins'],
+      ['autonomous-car-depots', 'security'],
+      ['ship-breaking', 'beaches'],
+      ['ship-breaking', 'far-lands'],
+      ['ship-breaking', 'air-quality'],
+      ['ship-breaking', 'microenvironments'],
+      ['ship-breaking', 'production-lines'],
+
+      // extraction & environment
+      ['deserts', 'dunes'],
+      ['deserts', 'missile-test-facilities'],
+      ['deserts', 'expanse-west'],
+      ['deserts', 'solar-farms'],
+      ['deserts', 'far-lands'],
+      ['deserts', 'e-waste'],
+      ['deserts', 'data-centers'],
+      ['deserts', 'second-homes'],
+      ['deserts', 'lightning'],
+      ['beaches', 'dunes'],
+      ['beaches', 'transition-zones'],
+      ['beaches', 'microenvironments'],
+      ['beaches', 'surveillance-cameras'],
+      ['dunes', 'far-lands'],
+      ['dunes', 'transition-zones'],
+      ['dunes', 'expanse-west'],
+      ['dunes', 'microenvironments'],
+      ['far-lands', 'expanse-west'],
+      ['far-lands', 'transition-zones'],
+      ['far-lands', 'satellites'],
+      ['far-lands', 'military-bases'],
+      ['far-lands', 'lithium-mines'],
+      ['expanse-west', 'cartography'],
+      ['expanse-west', 'military-bases'],
+      ['expanse-west', 'solar-farms'],
+      ['expanse-west', 'lithium-mines'],
+      ['transition-zones', 'microenvironments'],
+      ['transition-zones', 'needles'],
+      ['transition-zones', 'company-towns'],
+      ['air-quality', 'power-plants'],
+      ['air-quality', 'solar-farms'],
+      ['air-quality', 'data-centers'],
+      ['air-quality', 'ship-breaking'],
+      ['air-quality', 'e-waste'],
+      ['air-quality', 'cigarettes'],
+      ['solar-farms', 'power-plants'],
+      ['solar-farms', 'lithium-mines'],
+      ['solar-farms', 'deserts'],
+      ['solar-farms', 'suburban-life'],
+      ['solar-farms', 'military-bases'],
+      ['power-plants', 'ventilation-shafts'],
+      ['power-plants', 'lightning'],
+      ['power-plants', 'company-towns'],
+      ['power-plants', 'transition-zones'],
+      ['power-plants', 'chip-factories'],
+      ['microenvironments', 'cockroaches'],
+      ['microenvironments', 'ventilation-shafts'],
+      ['microenvironments', 'basements'],
+      ['microenvironments', 'data-centers'],
+
+      // labor & community
+      ['production-lines', 'robot-arms'],
+      ['production-lines', 'logistics-centers'],
+      ['production-lines', 'clocks'],
+      ['production-lines', 'company-towns'],
+      ['production-lines', 'union-meetings'],
+      ['production-lines', 'second-hand-stores'],
+      ['production-lines', 'digital-twins'],
+      ['production-lines', 'motors'],
+      ['production-lines', 'ventilation-shafts'],
+      ['production-lines', 'e-waste'],
+      ['robot-arms', 'motors'],
+      ['robot-arms', 'workshops'],
+      ['robot-arms', 'digital-twins'],
+      ['motors', 'escalators'],
+      ['motors', 'ventilation-shafts'],
+      ['motors', 'power-plants'],
+      ['motors', 'drones'],
+      ['clocks', 'data-centers'],
+      ['clocks', 'financial-districts'],
+      ['clocks', 'military-bases'],
+      ['workshops', 'hacker-spaces'],
+      ['workshops', 'union-meetings'],
+      ['workshops', 'community-tech'],
+      ['workshops', 'second-hand-stores'],
+      ['workshops', 'bricks'],
+      ['hacker-spaces', 'community-tech'],
+      ['hacker-spaces', 'obfuscation'],
+      ['hacker-spaces', 'basements'],
+      ['hacker-spaces', 'radio'],
+      ['hacker-spaces', 'disruption'],
+      ['hacker-spaces', 'security'],
+      ['union-meetings', 'company-towns'],
+      ['union-meetings', 'disruption'],
+      ['union-meetings', 'logistics-centers'],
+      ['home-robots', 'robot-arms'],
+      ['home-robots', 'motors'],
+      ['home-robots', 'basements'],
+      ['home-robots', 'suburban-life'],
+      ['community-tech', 'public-parks'],
+      ['community-tech', 'radio'],
+      ['community-tech', 'air-quality'],
+      ['community-tech', 'second-hand-stores'],
+
+      // collections & marginal objects
+      ['collections', 'second-hand-stores'],
+      ['collections', 'data-brokerage'],
+      ['collections', 'microenvironments'],
+      ['collections', 'loot-boxes'],
+      ['second-hand-stores', 'production-lines'],
+      ['second-hand-stores', 'e-waste'],
+      ['second-hand-stores', 'disruption'],
+      ['second-hand-stores', 'cashless-societies'],
+      ['second-hand-stores', 'company-towns'],
+      ['needles', 'production-lines'],
+      ['needles', 'suburban-life'],
+      ['needles', 'company-towns'],
+      ['needles', 'public-parks'],
+      ['needles', 'transition-zones'],
+      ['cockroaches', 'ventilation-shafts'],
+      ['cockroaches', 'basements'],
+      ['cockroaches', 'ship-breaking'],
+      ['cockroaches', 'transition-zones'],
+      ['cockroaches', 'deserts'],
+      ['cigarettes', 'production-lines'],
+      ['cigarettes', 'loot-boxes'],
+      ['cigarettes', 'needles'],
+      ['cigarettes', 'casinos'],
+      ['cigarettes', 'transition-zones'],
+      ['cigarettes', 'company-towns'],
+      ['fireworks', 'militarization'],
+      ['fireworks', 'deserts'],
+      ['fireworks', 'surveillance-cameras'],
+      ['fireworks', 'expanse-west'],
+      ['fireworks', 'casinos'],
+      ['lightning', 'radio'],
+      ['lightning', 'data-centers'],
+      ['lightning', 'satellites'],
+      ['lightning', 'skyscrapers'],
+      ['lightning', 'solar-farms'],
+      ['lightning', 'deserts'],
+      ['disruption', 'company-towns'],
+      ['disruption', 'union-meetings'],
+      ['disruption', 'production-lines'],
+      ['disruption', 'streaming-services'],
+      ['disruption', 'autonomous-car-depots'],
+      ['disruption', 'second-hand-stores'],
+      ['silicon-valley', 'company-towns'],
+      ['silicon-valley', 'golf-courses'],
+      ['silicon-valley', 'second-homes'],
+      ['silicon-valley', 'botfarms'],
+      ['silicon-valley', 'hacker-spaces'],
+
+      // radio & transmission
+      ['radio', 'military-bases'],
+      ['radio', 'satellites'],
+      ['radio', 'obfuscation'],
+      ['radio', 'community-tech'],
+      ['radio', 'bunkers'],
+      ['radio', 'drones'],
+
+      // ventilation & hidden infrastructure
+      ['ventilation-shafts', 'data-centers'],
+      ['ventilation-shafts', 'chip-factories'],
+      ['ventilation-shafts', 'power-plants'],
+      ['ventilation-shafts', 'basements'],
+      ['ventilation-shafts', 'bunkers'],
+      ['ventilation-shafts', 'skyscrapers'],
+      ['ventilation-shafts', 'microenvironments'],
+      ['ventilation-shafts', 'production-lines'],
+    ];
+
+    (function initCloud() {
+      const nodeMap = {};
+      CLOUD_NODES.forEach(n => nodeMap[n.id] = n);
+
+      const seen = new Set();
+      const cloudLinks = [];
+      CLOUD_RAW_LINKS.forEach(([s, t]) => {
+        if (!nodeMap[s] || !nodeMap[t] || s === t) return;
+        const key = [s, t].sort().join('||');
+        if (!seen.has(key)) { seen.add(key); cloudLinks.push({ source: s, target: t }); }
+      });
+
+      const R = 3.5;
+      const cloudSvg = d3.select('#cloud-svg');
+      const cg = cloudSvg.append('g');
+      const cLinkLayer = cg.append('g');
+      const cNodeLayer = cg.append('g');
+
+      const csim = d3.forceSimulation(CLOUD_NODES)
+        .force('link', d3.forceLink(cloudLinks).id(d => d.id).distance(70).strength(0.2))
+        .force('charge', d3.forceManyBody().strength(-150))
+        .force('center', d3.forceCenter(gW() * 0.5, gH() * 0.5))
+        .force('x', d3.forceX(gW() * 0.5).strength(0.06))
+        .force('y', d3.forceY(gH() * 0.5).strength(0.06))
+        .force('collision', d3.forceCollide().radius(R + 22));
+
+      const cLinkSel = cLinkLayer.selectAll('line')
+        .data(cloudLinks).enter().append('line').attr('class', 'c-link');
+
+      const cNodeSel = cNodeLayer.selectAll('.c-node')
+        .data(CLOUD_NODES).enter().append('g').attr('class', 'c-node')
+        .call(d3.drag()
+          .on('start', (e, d) => { if (!e.active) csim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+          .on('end', (e, d) => { if (!e.active) csim.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+      cNodeSel.append('circle').attr('r', R);
+      cNodeSel.append('text').attr('x', 0).attr('y', R + 2).attr('text-anchor', 'middle').text(d => d.label);
+
+      let cActive = null;
+      cNodeSel.on('click', (event, d) => {
+        event.stopPropagation();
+        if (cActive === d.id) {
+          cActive = null;
+          cNodeSel.classed('active', false).classed('neighbor', false);
+          cLinkSel.classed('lit', false);
+          return;
+        }
+        cActive = d.id;
+        const neighbors = new Set();
+        cLinkSel.classed('lit', l => {
+          const s = l.source.id ?? l.source, t = l.target.id ?? l.target;
+          const hit = s === d.id || t === d.id;
+          if (hit) { neighbors.add(s); neighbors.add(t); }
+          return hit;
+        });
+        cNodeSel
+          .classed('active', n => n.id === d.id)
+          .classed('neighbor', n => n.id !== d.id && neighbors.has(n.id));
+      });
+
+      cloudSvg.on('click', () => {
+        cActive = null;
+        cNodeSel.classed('active', false).classed('neighbor', false);
+        cLinkSel.classed('lit', false);
+      });
+
+      cloudSvg.call(d3.zoom().scaleExtent([0.25, 4]).on('zoom', e => cg.attr('transform', e.transform)));
+
+      csim.on('tick', () => {
+        cLinkSel
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        cNodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+
+      window.addEventListener('resize', () => {
+        csim.force('center', d3.forceCenter(gW() * 0.5, gH() * 0.5));
+        csim.force('x', d3.forceX(gW() * 0.5).strength(0.06));
+        csim.force('y', d3.forceY(gH() * 0.5).strength(0.06));
+        if (document.getElementById('cloud-svg').classList.contains('visible'))
+          csim.alpha(0.15).restart();
+      });
+    })();
+
+    let cloudVisible = false;
+    function toggleCloud() {
+      cloudVisible = !cloudVisible;
+      document.getElementById('cloud-svg').classList.toggle('visible', cloudVisible);
+      document.getElementById('svg').style.display = cloudVisible ? 'none' : '';
+      const ctb = document.getElementById('cloud-toggle-btn');
+      if (ctb) { ctb.textContent = cloudVisible ? '← Portfolio' : 'Interests →'; ctb.classList.toggle('active', cloudVisible); }
+    }
+
+    (function initDate() {
+      const el = document.getElementById('panel-date-text');
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now = new Date();
+      el.textContent = `${days[now.getDay()]} ${months[now.getMonth()]} ${String(now.getDate()).padStart(2, '0')} ${now.getFullYear()}`;
+    })();
+
+  </script>
+</body>
+
+</html>
