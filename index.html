@@ -373,7 +373,7 @@
 
     // Set iframe src once with correct initial theme
     const initDark = document.documentElement.classList.contains('dark') ? '1' : '0';
-    asciiIframe.src = `/ascii-particles.html?dark=${initDark}`;
+    asciiIframe.src = `ascii-particles.html?dark=${initDark}`;
 
     function setAsciiVisible(v) {
       asciiIframe.classList.toggle('hidden', !v);
