@@ -772,7 +772,6 @@ path.main-link.dimmed {
   overflow: hidden;
   border: 1px solid var(--border);
   min-height: 160px;
-  background-color: var(--border);
 }
 
 .ppd-img-wrap img {
