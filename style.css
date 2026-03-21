@@ -771,15 +771,13 @@ path.main-link.dimmed {
   width: 100%;
   overflow: hidden;
   border: 1px solid var(--border);
-  aspect-ratio: 3 / 2;
+  min-height: 160px;
   background-color: var(--border);
 }
 
 .ppd-img-wrap img {
   width: 100%;
-  height: 100%;
   display: block;
-  object-fit: cover;
   opacity: 0;
   transition: opacity 0.4s;
 }
